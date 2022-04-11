@@ -1,0 +1,5 @@
+# These folders contains third_party libraries
+# that should not be counted towards the linguist.
+subprojects/* linguist-vendored
+third_party/* linguist-vendored
+

@@ -1,0 +1,11 @@
+Checks: '*,
+         -abseil-*,
+         -altera-*,
+         -android-*,
+         -fuchsia-*,
+         -google-*,
+         -llvm*,
+         -zircon*,
+         -modernize-use-trailing-return-type,
+         -llvm-header-guard,
+"
