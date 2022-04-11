@@ -6,7 +6,8 @@
 namespace glu {
 
 
-Texture::Texture() {
+
+Texture::Texture(Resolution res, InternalFormat internal_format): internal_format{internal_format} {
 
     glCreateTextures(GL_TEXTURE_2D, 1, &id);
 
@@ -14,11 +15,13 @@ Texture::Texture() {
     glTextureParameteri(id, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTextureParameteri(id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTextureParameteri(id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-}
 
-Texture::Texture(Resolution res): Texture() {
+
     glBindTexture(GL_TEXTURE_2D, id);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, res.x, res.y, 0, GL_RGBA, GL_FLOAT, nullptr);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, get_internal_flag(internal_format), res.x, res.y, 0, get_flag(internal_format),
+          get_data_type(internal_format), nullptr);
+
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
@@ -30,8 +33,8 @@ Texture::~Texture() {
 }
 
 
-void Texture::bind_to_image_unit(unsigned int unit) const {
-    glBindImageTexture(unit, id, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+void Texture::bind_to_image_unit(unsigned int unit, AccessType access) const {
+    glBindImageTexture(unit, id, 0, GL_FALSE, 0, get_flag(access), get_internal_flag(internal_format));
 }
 
 void Texture::bind_to_texture_unit(unsigned int unit) const {

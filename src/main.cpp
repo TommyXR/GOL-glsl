@@ -5,6 +5,8 @@
 #include <exception>
 #include <iostream>
 #include <memory>
+#include <random>
+#include <utility>
 
 #include <glad/gl.h>
 
@@ -17,9 +19,8 @@
 
 #include <glm/glm.hpp>
 
-#include "primitives.hpp"
-#include "shader.hpp"
-#include "texture.hpp"
+#include "glu.hpp"
+#include "simulation.hpp"
 
 
 
@@ -27,11 +28,10 @@ static constexpr int OPENGL_VERSION_MAJOR = 4;
 static constexpr int OPENGL_VERSION_MINOR = 6;
 
 static constexpr std::size_t window_width = 1440;
-static constexpr std::size_t window_height = 1080;
+static constexpr std::size_t window_height = 1440;
 static constexpr std::string_view window_name = "Slime Simulation";
 
-static constexpr int res_x = 400;
-static constexpr int res_y = 400;
+static constexpr Texture::Resolution res{2048, 2048};
 
 
 namespace detail {
@@ -61,6 +61,7 @@ std::unique_ptr<GLFWwindow, detail::GLFWwindowDeleter> init_opengl() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, OPENGL_VERSION_MINOR);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
+    // glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_FALSE);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
 
@@ -71,7 +72,7 @@ std::unique_ptr<GLFWwindow, detail::GLFWwindowDeleter> init_opengl() {
     }
 
     glfwMakeContextCurrent(window);
-    glfwSwapInterval(1); // vsync
+    // glfwSwapInterval(1); // vsync
 
     const auto gl_version = gladLoadGL(glfwGetProcAddress);
 
@@ -101,14 +102,26 @@ void process_inputs(GLFWwindow& window) {
 }
 
 
-struct SimulationSettings {
-    int iterations_per_seconds = 1;
-};
+
+void randomize(Texture& tex, float density) {
+    std::mt19937 rng{std::random_device{}()};
+
+    std::uniform_real_distribution<float> dist(0, 1);
+
+    std::array<std::uint8_t, res.x * res.y> data;
+
+    for (auto& n: data) {
+        n = dist(rng) < density ? 1 : 0;
+    }
+
+    tex.set_image<std::uint8_t>(data, res, Texture::InternalFormat::R8ui);
+}
 
 
 
 int main() {
     using namespace glu;
+    using namespace std::chrono_literals;
 
     auto window = init_opengl();
 
@@ -117,20 +130,28 @@ int main() {
     Shader fs{Shader::Type::Fragment, "shaders/shader.frag.glsl"};
     Shader cs{Shader::Type::Compute, "shaders/shader.comp.glsl"};
 
-    Pipeline shader_pipeline;
-    shader_pipeline.attach(vs);
-    shader_pipeline.attach(fs);
+    Pipeline render_pipeline;
+    render_pipeline.attach(vs);
+    render_pipeline.attach(fs);
 
     Pipeline compute_pipeline;
     compute_pipeline.attach(cs);
 
-    Texture tex({res_x, res_y});
-    Quad quad;
+    Texture input_texture(res, Texture::InternalFormat::R8ui);
+    Texture output_texture(res, Texture::InternalFormat::R8ui);
 
-    SimulationSettings settings;
+
+    Quad quad;
+    Simulation::Parameters settings;
+
+
+    randomize(input_texture, settings.randomize_density);
 
 
     using clock_t = std::chrono::high_resolution_clock;
+
+    auto elapsed = 0ns;
+    int iteration = 0;
 
     auto frame_begin = clock_t::now();
 
@@ -138,44 +159,89 @@ int main() {
 
         const auto frame_end = clock_t::now();
 
-        [[maybe_unused]] const auto dt = std::chrono::duration_cast<std::chrono::milliseconds>(frame_end - frame_begin);
+        [[maybe_unused]] const auto dt = std::chrono::duration_cast<std::chrono::nanoseconds>(frame_end - frame_begin);
         frame_begin = frame_end;
 
+        elapsed += dt;
 
         glfwPollEvents();
         process_inputs(*window);
+
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
 
         // Imgui
+        ImGui::Begin("Slime!!!");
         {
-            ImGui::Begin("Slime!!!");
+            ImGui::Text("FPS: %f", ImGui::GetIO().Framerate);
 
-            ImGui::InputInt("Iterations per second", &settings.iterations_per_seconds);
+            ImGui::SliderInt("Iterations per second", &settings.iterations_per_second, 1, 500);
 
-            ImGui::End();
+            ImGui::Separator();
+
+            ImGui::SliderFloat("Randomize density", &settings.randomize_density, 0, 1);
+
+            if (ImGui::Button("Randomize!")) {
+                randomize(input_texture, settings.randomize_density);
+            }
         }
+        ImGui::End();
 
-        tex.bind_to_image_unit(0);
-        compute_pipeline.activate();
-        glDispatchCompute(res_x, res_y, 1);
-        compute_pipeline.deactivate();
 
-        glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
         glClear(GL_COLOR_BUFFER_BIT);
-        glViewport(0, 0, window_width, window_height);
 
-        tex.bind_to_texture_unit(0);
-        quad.draw(shader_pipeline);
+        // RENDERING!!
+        //
+        //
+        //
+        //
+        //
+
+
+        // Draw the texture
+        input_texture.bind_to_image_unit(0, Texture::AccessType::Read);
+        quad.draw(render_pipeline);
+
+
+        // Update cells
+
+        if (elapsed.count() >= 1.0f / settings.iterations_per_second) {
+            while (elapsed.count() >= 1.0f / settings.iterations_per_second) {
+
+                ++iteration;
+                fs.set_uniform("iteration", iteration);
+
+                elapsed -= 1000ms / settings.iterations_per_second;
+
+                input_texture.bind_to_image_unit(0, Texture::AccessType::Read);
+                output_texture.bind_to_image_unit(1, Texture::AccessType::Write);
+
+
+                compute_pipeline.activate();
+                glDispatchCompute(res.x, res.y, 1);
+                compute_pipeline.deactivate();
+
+                // Swap input and output textures...
+                std::swap(input_texture, output_texture);
+                //
+                //
+                //
+                //
+                //
+                //
+                //
+                //
+                // /RENDERING!!
+            }
+        }
 
 
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-
+        // glFlush();
         glfwSwapBuffers(window.get());
     }
 

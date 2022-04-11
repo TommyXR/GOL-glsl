@@ -15,6 +15,8 @@ target_sources(slime
     PUBLIC  include/shader.hpp
             include/texture.hpp
             include/primitives.hpp
+            include/glu.hpp
+            include/simulation.hpp
     
             src/main.cpp
             src/shader.cpp
