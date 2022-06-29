@@ -31,7 +31,7 @@ static constexpr std::size_t window_width = 1440;
 static constexpr std::size_t window_height = 1440;
 static constexpr std::string_view window_name = "Slime Simulation";
 
-static constexpr Texture::Resolution res{2048, 2048};
+static constexpr Texture::Resolution res{512, 512};
 
 
 namespace detail {
@@ -221,7 +221,7 @@ int main() {
 
 
                 compute_pipeline.activate();
-                glDispatchCompute(res.x, res.y, 1);
+                glDispatchCompute(res.x / 32, res.y / 32, 1);
                 compute_pipeline.deactivate();
 
                 // Swap input and output textures...

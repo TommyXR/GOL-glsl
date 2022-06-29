@@ -1,6 +1,6 @@
 #version 460 core
 
-layout(local_size_x = 1, local_size_y = 1) in;
+layout(local_size_x = 32, local_size_y = 32) in;
 
 layout(r8ui, binding = 0) uniform uimage2D values_in;
 layout(r8ui, binding = 1) uniform uimage2D values_out;
