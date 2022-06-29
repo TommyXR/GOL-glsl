@@ -2,12 +2,11 @@ cmake_minimum_required(VERSION 3.21)
 
 project(Slime LANGUAGES C CXX)
 
-add_subdirectory("third_party")
-
 
 find_package(OpenGL REQUIRED)
 find_package(glfw3 REQUIRED)
 
+add_subdirectory("third_party")
 
 add_executable(slime)
 

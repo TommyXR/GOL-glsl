@@ -18,3 +18,4 @@ target_sources(imgui
             imgui/backends/imgui_impl_glfw.cpp)
 
 target_include_directories(imgui SYSTEM PUBLIC imgui imgui/backends)
+target_link_libraries(imgui glfw OpenGL::GL)
