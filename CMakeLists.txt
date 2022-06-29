@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.21)
 
 project(Slime LANGUAGES C CXX)
 
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(OpenGL REQUIRED)
 find_package(glfw3 REQUIRED)
@@ -24,8 +27,7 @@ target_sources(slime
 )
 
             
-target_compile_options(slime PRIVATE -Wall -Wextra -Wpedantic -Werror)
-set_property(TARGET slime PROPERTY CXX_STANDARD 23)
+target_compile_options(slime PRIVATE -Wall -Wextra -Wpedantic)
 
 target_include_directories(slime PUBLIC include/)
 target_link_libraries(slime OpenGL::GL glfw glad imgui)
